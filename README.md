@@ -1,1 +1,1 @@
-ns_covid
+nb_covid

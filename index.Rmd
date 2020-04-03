@@ -1,23 +1,25 @@
 ---
-title: "NS Covid Rates"
-author: "Gordon Shotwell"
+title: "NB Covid Rates"
+author: "Original work by [Gordon Shotwell](https://shotwell.ca/), NB Adaptation by [Justin d'Entremont](mailto:justin5824@gmail.com)"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
-output: html_document
+output:
+  html_document:
+    theme: default
+    highlight: haddock
 ---
 
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(RcppRoll)
 library(plotly)
-source("data.R")
-covid <- covid %>% 
-  mutate(total_tests = positives + negatives,
-         daily_pos = positives - lag(positives),
-         daily_neg = negatives - lag(negatives),
-         daily_tests = daily_pos + daily_neg,
-         date = lubridate::ymd(date),
+#Load from manuaaly updated CSV file
+nb_daily_covid <- read_csv("nb_daily_covid.csv", col_types = cols(SOE = col_integer()))
+
+covid <- nb_daily_covid %>% 
+  mutate(date = lubridate::ymd(date),
          five_day_cases = roll_sum(daily_pos, 5, fill = NA, align = "right"))
-covid$no_action <- 3
+
+covid$no_action <- 1
 for (i in 2:nrow(covid)) {
   covid$no_action[i] <- covid$no_action[(i - 1)] * 1.35
 }
@@ -25,11 +27,17 @@ covid$no_action <- round(covid$no_action, 0)
 ```
 # Data 
 
-The data comes from [daily reports](https://novascotia.ca/coronavirus/#cases) from the Nova Scotia Government which I record in a [Github Repo](https://github.com/GShotwell/ns_covid).
+The data comes from [daily reports](http://gnb.ca/coronavirus) from the New Brunswick Provincial Government which are recorded in a [Github Repo](https://github.com/lubindent/nb_covid). Some data has been taken from media reports to fill in blanks in testing numbers prior to March 28th.
+
+---
+
+# Charts
+
+### Cases
 
 The first plot is a plot of total positive tests over time. The red line shows a 35% daily growth rate, which is about what would've happened had we not undertaken any public policy interventions. The black line is the actual cases. 
 
-```{r plots, echo = FALSE, warning=FALSE, message=FALSE}
+```{r plots, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
 theme_set(theme_minimal())
 
 covid %>% 
@@ -39,68 +47,79 @@ covid %>%
   ggplot(aes(x  = date, y = cases, group = Scenario, colour = Scenario)) +
   scale_color_manual(values = c("red", "black"), labels = c("No Intervention", "Actual Cases")) +
   geom_line() +
-  geom_vline(xintercept = lubridate::ymd("2020-03-22"), 
+  geom_vline(xintercept = lubridate::ymd("2020-03-19"), 
              colour = "gray") +
   annotate("text", 
-           x = lubridate::ymd("2020-03-22") - 0.4, 
-           y = 200, 
+           x = lubridate::ymd("2020-03-19") - 0.4, 
+           y = 350, 
            label = "State of Emergency Declared", 
            color = "gray",
            angle = 90) +
   labs(y = "Positive Tests",
        x = "Date",
-       title = "Nova Scotia COVID Cases") 
+       title = "New Brunswick COVID Cases") 
 ```
+
+---
 
 It's also useful to track active cases which are all cases which haven't recovered yet.
 
-```{r, echo = FALSE, warning=FALSE, message=FALSE}
+```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
 
 covid %>% 
   select(date, total = positives, recovered, in_hospital) %>% 
   mutate(active = total - recovered) %>% 
-  select(-total) %>% 
+  #select(-total) %>% 
   pivot_longer(-date, names_to = "group", values_to = "number") %>% 
-  mutate(group = factor(group, levels = c("active",  "recovered", "in_hospital"),
-                        labels = c("Active",  "Recovered", "Hospital"))) %>% 
+  mutate(group = factor(group, levels = c("total", "active",  "recovered", "in_hospital"),
+                        labels = c("Total Cases",  "Active Infections",  "Recovered", "In Hospital"))) %>% 
   ggplot(aes(x = date, y = number, group = group, colour = group)) +
   geom_line() +
   labs(y = "Number of people",
        x = "Date",
-       title = "Nova Scotia Covid Cases")
+       title = "New Brunswick COVID Cases")
 
 ```
 
+---
 
+### Growth
 
 
 I stole this plot from an excellent [data visualization](https://aatishb.com/covidtrends/) of covid trends. Each point is a day and it shows the sum of new cases in the previous five days against the number of total cases. I chose a five day sum because that's about the mean incubation period for COVID-19.
 
-```{r, echo = FALSE, warning=FALSE, message=FALSE}
-ggplot(covid, aes(x = positives, y = five_day_cases)) +
+```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
+log_graph <- ggplot(covid, aes(x = positives, y = five_day_cases)) +
   geom_point() +
   geom_line() +
-  labs(y = "Cases in previous five days",
-       x = "Total cases",
-       title = "Nova Scotia COVID cases")
+  labs(y = "Cases in Previous Five Days",
+       x = "Total Cases",
+       title = "New Brunswick COVID cases")
+log_graph + scale_y_log10()
 ```
 
-## Tests
+---
 
-Next we look at tests. The first one shows how great the microbiology lab has been in ramping up testing capacity. This is [incredible](https://www.cbc.ca/news/canada/nova-scotia/covid-19-microbiology-lab-testing-health-care-1.5515115) and they deserve a great deal of thanks from all of us. I would be sending gift baskets of home made saurkraut and miso if that didn't violate social distancing rules.
+### Tests
 
-```{r, echo = FALSE, warning=FALSE, message=FALSE}
+Next we look at tests. The first one shows how there is a lot of missing (unpublished) data in what is curently published on the GNB website, particurarly for early on in the outbreak. GNB only started publishing daily testing numbers beginning on March 28th.
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
 ggplot(covid, aes(x  = date, y = daily_tests)) +
   geom_point() +
   geom_line() +
-  labs(y = "Test per day",
+  labs(y = "Tests per day",
        x = "Date",
-       title = "Nova Scotia COVID Tests") 
+       title = "New Brunswick COVID Tests") +
+  ylim(0, NA)
+
 ```
+
+---
 
 The last thing to look at is the positive rate for our testing. This should be read in conjunction with the previous chart because if we test a lot of people, the positive rate will probably go down even though nothing changed about the disease. The thing to pay attention here is if these two move in the same direction, if the number of tests goes up and the positive rate also goes up that's bad, if they both go down that's good.
 
-```{r, echo = FALSE, warning=FALSE, message=FALSE}
+```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
 ggplot(covid, aes(x  = date, 
                   y = daily_pos / daily_tests,
                   size = daily_tests)) +
@@ -108,15 +127,16 @@ ggplot(covid, aes(x  = date,
   scale_y_continuous(labels = scales::percent)+
   labs(y = "Positive rate",
        x = "Date",
-       title = "Nova Scotia COVID tests") 
+       title = "New Brunswick COVID tests") 
 ```
 
+---
 
-# Raw data
+# Raw Data
 
-Here is the raw data I collect, please let me know if I've made any mistakes in recording this data. 
+Here is the raw data collected, please let me know if I've made any mistakes in recording this data (Justin5824@gmail.com). 
 
-```{r}
+```{r echo = FALSE}
 knitr::kable(covid)
 ```
 
