@@ -1,10 +1,10 @@
 ---
-title: "NB Covid Rates"
+title: "New Brunswick COVID-19 Rates"
 author: "Original work by [Gordon Shotwell](https://shotwell.ca/), Adaptation to New Brunswick data by [Justin d'Entremont](mailto:justin5824@gmail.com)"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
-    theme: default
+  html_document: default
+  html_notebook: 
     highlight: haddock
 ---
 
@@ -12,6 +12,7 @@ output:
 library(tidyverse)
 library(RcppRoll)
 library(plotly)
+library(DT)
 #Load from manuaaly updated CSV file
 nb_daily_covid <- read_csv("nb_daily_covid.csv", col_types = cols(SOE = col_integer()))
 
@@ -28,6 +29,8 @@ covid$no_action <- round(covid$no_action, 0)
 # Data 
 
 The data comes from [daily reports](http://gnb.ca/coronavirus) from the New Brunswick Provincial Government which I have recorded in a [Github Repo](https://github.com/lubindent/nb_covid). *Some data has been taken from media reports to fill in blanks in testing numbers prior to March 28th.*
+
+This page current displays data from `r format(covid$date[min(covid[1])], format="%A, %B %d")` up until `r format(covid$date[max(covid[1])], format="%A, %B %d %Y")`.
 
 ---
 
@@ -61,8 +64,22 @@ covid %>%
 ```
 
 ---
+```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
+#Calculate hospitalization rates
+in_hosp <- covid[max(covid[1]),]$in_hospital
+active_case <- covid[max(covid[1]),]$active
+current_hosp_rate <- round(in_hosp / active_case * 100,2)
 
-It's also useful to track active cases which are all cases which haven't recovered yet.
+tot_hosp <- covid[max(covid[1]),]$total_hospitalized
+tot_case <- covid[max(covid[1]),]$positives
+tot_hosp_rate <- round(tot_hosp / tot_case * 100,2)
+
+```
+
+
+It's also useful to track active cases, cases who have recovered or are currently in hospital. 
+
+Take note that the current hospitalization rate $\frac{\text{# in hospital}}{\text{# active cases}}$ is `r current_hosp_rate`%  and the total hospitalization rate $\frac{\text{# total admited to hospital}}{\text{# total cases}}$ is `r tot_hosp_rate`%.
 
 ```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
 
@@ -86,7 +103,7 @@ covid %>%
 ### Growth
 
 
-I stole this plot from an excellent [data visualization](https://aatishb.com/covidtrends/) of covid trends. Each point is a day and it shows the sum of new cases in the previous five days against the number of total cases. I chose a five day sum because that's about the mean incubation period for COVID-19.
+I stole this plot from an excellent [data visualization](https://aatishb.com/covidtrends/) of COVID trends. Each point is a day and it shows the sum of new cases in the previous five days against the number of total cases. I chose a five day sum because that's about the mean incubation period for COVID-19.
 
 I encourage anyone to watch **[this YouTube video](https://www.youtube.com/watch?v=54XLXg4fYsc)** to get a better understanding how to read this chart. In brief:
 
@@ -160,8 +177,9 @@ ggplot(covid, aes(x  = date,
 
 Here is the raw data collected, please let me know if I've made any mistakes in recording this data (Justin5824@gmail.com). 
 
-```{r echo = FALSE}
-knitr::kable(covid)
+```{r, layout="l-body-outset", echo = FALSE}
+covid_df <- as.data.frame(covid)
+library(rmarkdown)
+paged_table(covid)
 ```
-
 
