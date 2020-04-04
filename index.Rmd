@@ -1,6 +1,6 @@
 ---
 title: "NB Covid Rates"
-author: "Original work by [Gordon Shotwell](https://shotwell.ca/), NB Adaptation by [Justin d'Entremont](mailto:justin5824@gmail.com)"
+author: "Original work by [Gordon Shotwell](https://shotwell.ca/), Adaptation to New Brunswick data by [Justin d'Entremont](mailto:justin5824@gmail.com)"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
@@ -21,13 +21,13 @@ covid <- nb_daily_covid %>%
 
 covid$no_action <- 1
 for (i in 2:nrow(covid)) {
-  covid$no_action[i] <- covid$no_action[(i - 1)] * 1.35
+  covid$no_action[i] <- covid$no_action[(i - 1)] * 1.32
 }
 covid$no_action <- round(covid$no_action, 0)
 ```
 # Data 
 
-The data comes from [daily reports](http://gnb.ca/coronavirus) from the New Brunswick Provincial Government which are recorded in a [Github Repo](https://github.com/lubindent/nb_covid). Some data has been taken from media reports to fill in blanks in testing numbers prior to March 28th.
+The data comes from [daily reports](http://gnb.ca/coronavirus) from the New Brunswick Provincial Government which I have recorded in a [Github Repo](https://github.com/lubindent/nb_covid). *Some data has been taken from media reports to fill in blanks in testing numbers prior to March 28th.*
 
 ---
 
@@ -35,7 +35,7 @@ The data comes from [daily reports](http://gnb.ca/coronavirus) from the New Brun
 
 ### Cases
 
-The first plot is a plot of total positive tests over time. The red line shows a 35% daily growth rate, which is about what would've happened had we not undertaken any public policy interventions. The black line is the actual cases. 
+The first plot is a plot of total positive tests over time. The red line shows a 32% daily growth rate, which is about what would've happened had we not undertaken any public policy interventions. The black line is the actual cases. 
 
 ```{r plots, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
 theme_set(theme_minimal())
@@ -72,7 +72,7 @@ covid %>%
   #select(-total) %>% 
   pivot_longer(-date, names_to = "group", values_to = "number") %>% 
   mutate(group = factor(group, levels = c("total", "active",  "recovered", "in_hospital"),
-                        labels = c("Total Cases",  "Active Infections",  "Recovered", "In Hospital"))) %>% 
+                        labels = c("Total Cases",  "Active Infections",  "Recovered", "Currently In Hospital"))) %>% 
   ggplot(aes(x = date, y = number, group = group, colour = group)) +
   geom_line() +
   labs(y = "Number of people",
@@ -88,6 +88,13 @@ covid %>%
 
 I stole this plot from an excellent [data visualization](https://aatishb.com/covidtrends/) of covid trends. Each point is a day and it shows the sum of new cases in the previous five days against the number of total cases. I chose a five day sum because that's about the mean incubation period for COVID-19.
 
+I encourage anyone to watch **[this YouTube video](https://www.youtube.com/watch?v=54XLXg4fYsc)** to get a better understanding how to read this chart. In brief:
+
+- When the line is flat, infections are growing at a steady (but not exponential) rate. 
+- When the line is sloped up, the number of cases are growing exponentialy.
+- When the line is sloped down, rate of new of cases appearing is decreasing.
+- When the line is headed straight down, we will seem to have a handle on the spread of diease and are on the way down the "curve".
+
 ```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
 log_graph <- ggplot(covid, aes(x = positives, y = five_day_cases)) +
   geom_point() +
@@ -100,9 +107,26 @@ log_graph + scale_y_log10()
 
 ---
 
-### Tests
+### Number of Tests
 
 Next we look at tests. The first one shows how there is a lot of missing (unpublished) data in what is curently published on the GNB website, particurarly for early on in the outbreak. GNB only started publishing daily testing numbers beginning on March 28th.
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
+
+covid %>% 
+  select(date, total_tests) %>% 
+  pivot_longer(-date, names_to = "group", values_to = "number") %>% 
+  mutate(group = factor(group, levels = c("total_tests"),
+                        labels = c("Total Tests Conducted"))) %>% 
+  ggplot(aes(x = date, y = number, group = group, colour = group)) +
+  geom_line() +
+  labs(y = "Number of Tests",
+       x = "Date",
+       title = "New Brunswick - Total Number of COVID Tests Conducted")
+
+```
+
+
 
 ```{r, echo = FALSE, warning=FALSE, message=FALSE, dev='svg'}
 ggplot(covid, aes(x  = date, y = daily_tests)) +
@@ -110,7 +134,7 @@ ggplot(covid, aes(x  = date, y = daily_tests)) +
   geom_line() +
   labs(y = "Tests per day",
        x = "Date",
-       title = "New Brunswick COVID Tests") +
+       title = "New Brunswick - Number of COVID Tests Conducted Per Day") +
   ylim(0, NA)
 
 ```
